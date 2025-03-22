@@ -1,0 +1,73 @@
+1.  Introduction
+With the introduction of AI in recent times, it has become much easier for us to code and create contraptions that are usable and applicable in everyday life. Thinking of what to do for this project, I took inspiration from one my grandmother’s daily activities: taking medicine. Due to old age, she tends to be very forgetful and sometimes forgets to take her medicine. Hence, I decided to find a way to automate this activity for her, and make it easier for her to remember her medicine
+In this instructable, I will be explaining how to craft a medicine dispenser from an ESP32, together with Google Firebase and some additional electronics.
+  
+2. Explaining the Concept
+So, how do you make a medicine dispenser? The concept is simple! The main objective of the medicine dispenser is to release the medicine at specific timings for the user and notify the user to remind them to take the medicine at the correct time. In my case, I will be releasing the medicine at different times of day: morning, afternoon, night, of which the specific timings can be set on Google Firebase dynamically. When it is time to dispense, the medicine will be released, a buzzer will sound, and a LED light will light up to remind the user.
+The timings for dispense should by dynamic as well and can be edited anytime throughout the day in case of sudden changes. I will be using Google Firebase to implement this.
+
+3. List of Supplies
+  3.1. Software
+    • Arduino IDE
+    •	Google Firebase
+    •	BambuStudio or any other equivalent (Optional, for 3D printing)
+    Note: If you don’t have any access to 3D printing, it’s totally fine! You can build the medicine dispenser from simple materials like cardboard, paper and glue!
+  3.2. Hardware
+    •	ESP32
+    •	Servo Motor
+    •	LED light (Any colour)
+    •	Resistor (220 Ohm)
+    •	Button
+    •	Buzzer
+    •	Jumper Wires
+    •	Breadboard
+    •	USB to Micro-USB cable
+    •	PLA Filament (Optional, for 3D printing)
+
+
+4. Arranging the Circuit
+Before diving into the code, let us first arrange all the electronics. These are the main hardware that needs to be connected together:
+  •	ESP32
+  •	LED Light & Resistor
+  •	Button
+  •	Buzzer
+  •	Servo Motor
+  4.1 ESP32
+    First, Plug the ESP32 into the breadboard. Make sure to plug in the centre as shown:
+  4.2 LED & Resistor
+    Let’s connect the LED and resistor into the breadboard, and afterwards to the ESP32. We connect the positive jumper wire to GPIO 2, and the negative to ground. 
+  4.3 Button
+    For the Button, plug it into the breadboard again as shown, and connect the jumper wires to opposite ends of the connection. We connect the other end of the wires to GPIO 3 and ground. 
+  4.4 Buzzer
+    For the Buzzer, we connect one end of the jumper wires to it, and plug the other end into GPIO 5 and ground. 
+  4.5 Servo Motor
+    For the Servo Motor, we connect 3 wires to it, one for ground, one for supply of power, and one to connect to the ESP. We connect the other end of the wires to GPIO 4, 5V, and ground. 
+  
+5. The Code
+To summarize the code:
+  •	All the required libraries, variables and connections are defined
+  •	ESP32 connects to the Wifi
+  •	Set up of Google Firebase, and initialize connection with ESP32
+  •	Initialize ESP32 to all other required hardware
+  •	ESP32 fetches the dispense timings from Google Firebase (once every 30 seconds)
+  •	ESP32 compares the dispense timings to current time. If equal, ‘dispenseMedicine’ is set to true. If not, it stays false
+  •	Function ‘dispenseMedicine’ activates the servo motor, LED, and Buzzer to dispense the medicine if it is true
+  Each line of code is explained in detail in the photo, so do refer to it for more details!
+                                                                                                                                                                                                                                                        
+6. Google Firebase
+I used Google Firebase to allow easy access to changing the dispense timings when applicable. In this case, I have 3 slots: Morning, Afternoon, Night. These timings can be changed anytime throughout the day to edit the dispense timings of any slot, and the code will update as the ESP32 will constantly be updating its data from the Google Firebase.
+
+7. Designing the Medicine Dispenser
+Next is the design for the medicine dispenser. Once again, there is no need to 3D model and print out the dispenser as it can be built with any materials found at home, like carboard. Be creative! However, here are photos of my model for reference, and you can try making it yourself!
+
+8. Final Product
+Congratulations, you have made your own medicine dispenser! To test it out, you can change the timings on your own firebase to test it all works!
+
+9. Final Thoughts
+I was very pleased with the final result of the project. It was my first time using a lot of the technology in the project and as a whole I found this project very rewarding. From learning how to use the ESP32 and Google Firebase to watching my 3D print, it was a journey I don't regret embarking on.
+
+On a more personal note: something I noticed throughout this project is that although putting together final product was fun, I found myself enjoying the journey more often than not. Running around searching for help on how to connect the electronics, connecting the ESP32 to firebase, and changing my 3D model when it was the wrong size when printed, those are the moments I remember the most. So, as you embark on your maker journey, I hope you learn to find the joy in the little things in these projects because that is what gives you the motivation to continue and create more.
+As for future iterations of this project, I think the concept has the potential to be scaled for application in people’s own homes, or even hospitals, optimising efficiency and manpower usage.
+But for now, I'm really satisfied with my project and how well it turned out.
+
+~I hope you enjoyed this instructable and have a go at building your own!

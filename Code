@@ -108,6 +108,8 @@ void setup() {
     Serial.println("⏳ Time synchronization started...");
 }
 
+
+
 void loop() {
     unsigned long currentMillis = millis();  // Get current millis time
 

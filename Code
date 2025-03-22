@@ -1,0 +1,193 @@
+#include <WiFi.h>  // Include WiFi library for ESP32 to connect to WiFi
+#include <Firebase_ESP_Client.h>  // Firebase library to connect to Realtime Database
+#include <ESP32Servo.h>  // Servo motor library compatible with ESP32
+#include <ArduinoJson.h>  // Library for parsing JSON data (used for Firebase)
+
+// **Wi-Fi Credentials**
+#define WIFI_SSID "OH Fam"  // WiFi network name (SSID)
+#define WIFI_PASSWORD "1994347810"  // WiFi password
+
+// **Firebase Configuration**
+#define FIREBASE_HOST "https://pdss-5c195-default-rtdb.asia-southeast1.firebasedatabase.app/"  // Firebase RTDB URL
+#define FIREBASE_AUTH "8ea418bfc0482b1f682227fa930bc88b7bdce090"  // Firebase legacy database secret
+
+FirebaseData fbdo;  // Firebase data object to read/write
+FirebaseAuth auth;  // Firebase auth object (legacy token)
+FirebaseConfig config;  // Firebase config object to store host & auth
+
+Servo myServo;  // Create a Servo object
+const int ledPin = 2;  // GPIO pin connected to LED
+const int buttonPin = 3;  // GPIO pin connected to button
+const int buzzerPin = 5;  // GPIO pin connected to buzzer
+
+bool medicineTime = false;  // Flag to track if it's medicine time
+bool dispensedToday[3] = {false, false, false};  // Array to keep track of which time slots have already dispensed today
+
+int movementDelay = 1000;  // Delay after servo movement
+
+// **Store Medicine Schedule**
+String medicineTimes[3] = {"08:00", "14:00", "20:00"};  // Default medicine times: Morning, Afternoon, Night
+
+// **NTP Time Configuration**
+const long gmtOffset_sec = 8 * 3600;  // Timezone offset in seconds for GMT+8
+const int daylightOffset_sec = 0;  // No daylight saving
+const char* ntpServer = "pool.ntp.org";  // NTP server to fetch current time
+
+// **Time tracking for Firebase updates**
+unsigned long lastFetchTime = 0;  // Last time we fetched data from Firebase
+const unsigned long fetchInterval = 30000;  // How often (ms) to fetch data from Firebase (30s)
+unsigned long lastCheckTime = 0;  // Last time we checked for medicine time
+const unsigned long checkInterval = 60000;  // Check every 60 seconds
+
+
+
+void fetchFirebaseData() {
+    Serial.println("📡 Fetching updated medicine times from Firebase...");
+    if (Firebase.RTDB.getJSON(&fbdo, "/Time")) {  // Read the JSON at path "/Time"
+        if (fbdo.dataType() == "json") {
+            Serial.println("✅ Firebase Data Retrieved: " + fbdo.jsonString());
+            parseJSON(fbdo.jsonString());  // Parse and update local medicineTimes[]
+        }
+    } else {
+        Serial.print("❌ Firebase GET Failed: ");
+        Serial.println(fbdo.errorReason());  // Print reason if Firebase GET fails
+    }
+}
+
+
+
+void parseJSON(String jsonData) {
+    StaticJsonDocument<200> doc;  // Create a small JSON document
+    DeserializationError error = deserializeJson(doc, jsonData);  // Parse JSON string
+
+    if (error) {
+        Serial.print("JSON Parsing Failed: ");
+        Serial.println(error.c_str());  // Print error message if parsing fails
+        return;
+    }
+
+    // ✅ Extract and assign each time slot
+    medicineTimes[0] = doc["Morning"].as<const char*>() ? String(doc["Morning"].as<const char*>()) : "";
+    medicineTimes[1] = doc["Afternoon"].as<const char*>() ? String(doc["Afternoon"].as<const char*>()) : "";
+    medicineTimes[2] = doc["Night"].as<const char*>() ? String(doc["Night"].as<const char*>()) : "";
+
+    // Print updated schedule
+    Serial.println("📅 Updated Medicine Schedule:");
+    Serial.println("🌅 Morning: " + medicineTimes[0]);
+    Serial.println("🌇 Afternoon: " + medicineTimes[1]);
+    Serial.println("🌙 Night: " + medicineTimes[2]);
+}
+
+
+
+void setup() {
+    Serial.begin(115200);  // Start serial communication
+
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);  // Connect to WiFi
+    Serial.print("Connecting to WiFi...");
+    while (WiFi.status() != WL_CONNECTED) {
+        Serial.print(".");
+        delay(1000);  // Wait until WiFi is connected
+    }
+    Serial.println("\n✅ Connected to WiFi!");
+
+    // **Firebase Setup**
+    config.host = FIREBASE_HOST;  // Set Firebase URL
+    config.signer.tokens.legacy_token = FIREBASE_AUTH;  // Set legacy token
+    Firebase.begin(&config, &auth);  // Begin Firebase connection
+    Firebase.reconnectWiFi(true);  // Auto reconnect if WiFi drops
+
+    pinMode(ledPin, OUTPUT);  // Set LED pin as output
+    pinMode(buttonPin, INPUT_PULLUP);  // Use internal pull-up for button
+    pinMode(buzzerPin, OUTPUT);  // Set buzzer pin as output
+
+    myServo.attach(4);  // Attach servo signal to GPIO 4
+    myServo.write(0);  // Start servo at 0 degrees
+
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);  // Sync time with NTP
+    Serial.println("⏳ Time synchronization started...");
+}
+
+void loop() {
+    unsigned long currentMillis = millis();  // Get current millis time
+
+    // Check if it's time to fetch updated Firebase data
+    if (currentMillis - lastFetchTime >= fetchInterval) {
+        fetchFirebaseData();  // Get new time slots from Firebase
+        lastFetchTime = currentMillis;
+    }
+
+    // Check if it's time to compare time slots
+    if (currentMillis - lastCheckTime >= checkInterval) {
+        lastCheckTime = currentMillis;
+
+        struct tm timeinfo;
+        if (!getLocalTime(&timeinfo)) {  // Get current time from NTP
+            Serial.println("⚠️ Failed to obtain time");
+            return;
+        }
+
+        char currentTime[6];  // Format for HH:MM
+        strftime(currentTime, sizeof(currentTime), "%H:%M", &timeinfo);  // Format time
+        Serial.print("⌚ Current Time: ");
+        Serial.println(currentTime);
+
+        // At midnight, reset all dispensed flags
+        if (String(currentTime) == "00:00") {
+            Serial.println("🌙 Midnight detected! Resetting medicine dispensation tracking.");
+            for (int i = 0; i < 3; i++) {
+                dispensedToday[i] = false;
+            }
+        }
+
+        // Loop through all 3 time slots
+        for (int i = 0; i < 3; i++) {
+            Serial.print("🔎 Checking: ");
+            Serial.print(medicineTimes[i]);  
+            Serial.print(" vs Current Time: ");
+            Serial.println(currentTime);
+
+            // If current time matches a scheduled time and not dispensed yet
+            if (medicineTimes[i].equals(String(currentTime)) && !dispensedToday[i]) {
+                Serial.println("✅ Match Found! Dispensing Medicine...");
+
+                int targetAngle = 0;
+                if (i == 0) targetAngle = 60;   // Morning slot
+                else if (i == 1) targetAngle = 120;  // Afternoon slot
+                else if (i == 2) targetAngle = 180;  // Night slot
+
+                dispenseMedicine(targetAngle);  // Dispense with correct angle
+                dispensedToday[i] = true;  // Mark as dispensed
+            }
+        }
+    }
+
+    // If user presses button, reset LED and medicine alert
+    if (digitalRead(buttonPin) == LOW) {
+        Serial.println("✅ Button Pressed: Resetting LED & Medicine Time...");
+        digitalWrite(ledPin, LOW);
+        medicineTime = false;
+        delay(500);  // Debounce delay
+    }
+}
+
+
+
+void dispenseMedicine(int targetAngle) {
+    Serial.println("⚠️ Medicine Time! Activating Dispenser...");
+    digitalWrite(ledPin, HIGH);  // Turn on LED to alert user
+
+    myServo.detach();  // Reset servo to ensure it's responsive
+    delay(100);
+    myServo.attach(4);  // Reattach to signal pin
+    delay(100);
+
+    Serial.print("🎯 Moving Servo to: ");
+    Serial.println(targetAngle);
+    myServo.write(targetAngle);  // Move servo to desired angle
+    delay(2000);  // Wait for movement to finish
+
+    tone(buzzerPin, 1000);  // Turn on buzzer at 1kHz
+    delay(5000);  // Buzzer sounds for 5 seconds
+    noTone(buzzerPin);  // Turn off buzzer
+}

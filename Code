@@ -4,12 +4,12 @@
 #include <ArduinoJson.h>  // Library for parsing JSON data (used for Firebase)
 
 // **Wi-Fi Credentials**
-#define WIFI_SSID "OH Fam"  // WiFi network name (SSID)
-#define WIFI_PASSWORD "1994347810"  // WiFi password
+#define WIFI_SSID "YOUR OWN SSID"  // WiFi network name (SSID)
+#define WIFI_PASSWORD "YOUR OWN WIFI"  // WiFi password
 
 // **Firebase Configuration**
-#define FIREBASE_HOST "https://pdss-5c195-default-rtdb.asia-southeast1.firebasedatabase.app/"  // Firebase RTDB URL
-#define FIREBASE_AUTH "8ea418bfc0482b1f682227fa930bc88b7bdce090"  // Firebase legacy database secret
+#define FIREBASE_HOST "YOUR OWN FIREBASE"  // Firebase RTDB URL
+#define FIREBASE_AUTH "YOUR OWN FIREBASE"  // Firebase legacy database secret
 
 FirebaseData fbdo;  // Firebase data object to read/write
 FirebaseAuth auth;  // Firebase auth object (legacy token)
